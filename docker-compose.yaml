@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: securepay-postgres
+    environment:
+      POSTGRES_DB: securepay_db
+      POSTGRES_USER: securepay_user
+      POSTGRES_PASSWORD: securepay_password
+    ports:
+      - "5435:5432"
+    volumes:
+      - securepay_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U securepay_user -d securepay_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    container_name: securepay-adminer
+    ports:
+      - "8084:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  securepay_postgres_data:
