@@ -1,5 +1,4 @@
 package com.example.securepay.service;
-
 import com.example.securepay.dto.CreatePaymentRequest;
 import com.example.securepay.dto.PaymentResponse;
 import com.example.securepay.dto.ProcessPaymentRequest;
@@ -15,7 +14,11 @@ import com.example.securepay.repository.CustomerRepository;
 import com.example.securepay.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.example.securepay.dto.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -211,5 +214,77 @@ public class PaymentService {
         webhookService.createWebhook(savedPayment, eventType);
 
         return mapToResponse(savedPayment);
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page number cannot be negative"
+            );
+        }
+
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException(
+                    "Page size must be between 1 and 100"
+            );
+        }
+    }
+
+
+    @Transactional(readOnly = true)
+    public PaymentResponse getPayment(
+            Long merchantId,
+            String paymentReference
+    ) {
+        Payment payment = paymentRepository
+                .findByReferenceAndMerchant_Id(
+                        paymentReference,
+                        merchantId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found with reference: "
+                                + paymentReference
+                ));
+
+        return mapToResponse(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PaymentResponse> getPayments(
+            Long merchantId,
+            int page,
+            int size,
+            PaymentStatus status
+    ) {
+        validatePagination(page, size);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<Payment> paymentPage;
+
+        if (status == null) {
+            paymentPage =
+                    paymentRepository.findAllByMerchant_Id(
+                            merchantId,
+                            pageable
+                    );
+        } else {
+            paymentPage =
+                    paymentRepository
+                            .findAllByMerchant_IdAndStatus(
+                                    merchantId,
+                                    status,
+                                    pageable
+                            );
+        }
+
+        Page<PaymentResponse> responsePage =
+                paymentPage.map(this::mapToResponse);
+
+        return PageResponse.from(responsePage);
     }
 }

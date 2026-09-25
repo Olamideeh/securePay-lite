@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.example.securepay.dto.PageResponse;
+import com.example.securepay.enums.PaymentStatus;
 
 @RestController
 @RequestMapping("/api/v1/payments")
@@ -55,6 +57,44 @@ public class PaymentController {
                         merchant.getId(),
                         paymentReference,
                         request
+                );
+
+        return ResponseEntity.ok(response);
+    }
+    @GetMapping("/{paymentReference}")
+    public ResponseEntity<PaymentResponse> getPayment(
+            @AuthenticationPrincipal Merchant merchant,
+            @PathVariable String paymentReference
+    ) {
+        PaymentResponse response =
+                paymentService.getPayment(
+                        merchant.getId(),
+                        paymentReference
+                );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<PageResponse<PaymentResponse>>
+    getPayments(
+            @AuthenticationPrincipal Merchant merchant,
+
+            @RequestParam(defaultValue = "0")
+            int page,
+
+            @RequestParam(defaultValue = "10")
+            int size,
+
+            @RequestParam(required = false)
+            PaymentStatus status
+    ) {
+        PageResponse<PaymentResponse> response =
+                paymentService.getPayments(
+                        merchant.getId(),
+                        page,
+                        size,
+                        status
                 );
 
         return ResponseEntity.ok(response);

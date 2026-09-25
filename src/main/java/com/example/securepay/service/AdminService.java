@@ -3,13 +3,19 @@ package com.example.securepay.service;
 import com.example.securepay.dto.AdminMerchantResponse;
 import com.example.securepay.dto.AdminPaymentResponse;
 import com.example.securepay.dto.AdminWebhookResponse;
+import com.example.securepay.dto.PageResponse;
 import com.example.securepay.entity.Merchant;
 import com.example.securepay.entity.Payment;
 import com.example.securepay.entity.WebhookDelivery;
+import com.example.securepay.enums.PaymentStatus;
 import com.example.securepay.enums.WebhookDeliveryStatus;
 import com.example.securepay.repository.MerchantRepository;
 import com.example.securepay.repository.PaymentRepository;
 import com.example.securepay.repository.WebhookDeliveryRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,12 +46,40 @@ public class AdminService {
                 .toList();
     }
 
+
     @Transactional(readOnly = true)
-    public List<AdminPaymentResponse> getAllPayments() {
-        return paymentRepository.findAll()
-                .stream()
-                .map(this::mapPayment)
-                .toList();
+    public PageResponse<AdminPaymentResponse> getAllPayments(
+            int page,
+            int size,
+            PaymentStatus status
+    ) {
+        validatePagination(page, size);
+
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+
+        Page<Payment> paymentPage;
+
+        if (status == null) {
+            paymentPage = paymentRepository.findAll(pageable);
+        } else {
+            paymentPage = paymentRepository.findAllByStatus(
+                    status,
+                    pageable
+            );
+        }
+
+        Page<AdminPaymentResponse> responsePage =
+                paymentPage.map(this::mapPayment);
+
+        return PageResponse.from(responsePage);
+
+
+
     }
 
     @Transactional(readOnly = true)
@@ -84,7 +118,19 @@ public class AdminService {
                 payment.getCreatedAt()
         );
     }
+    private void validatePagination(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException(
+                    "Page number cannot be negative"
+            );
+        }
 
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException(
+                    "Page size must be between 1 and 100"
+            );
+        }
+    }
     private AdminWebhookResponse mapWebhook(
             WebhookDelivery delivery
     ) {
