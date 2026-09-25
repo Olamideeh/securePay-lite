@@ -59,23 +59,45 @@ public class WebhookDeliveryService {
             delivery.setResponseStatusCode(
                     exception.getStatusCode().value()
             );
-            markAsFailed(delivery, exception.getMessage());
+            handleDeliveryFailure(delivery, exception.getMessage());
 
         } catch (RestClientException exception) {
             delivery.setResponseStatusCode(null);
-            markAsFailed(delivery, exception.getMessage());
+            handleDeliveryFailure(delivery, exception.getMessage());
         }
 
         webhookRepository.save(delivery);
     }
 
-    private void markAsFailed(
+    private void handleDeliveryFailure(
             WebhookDelivery delivery,
             String errorMessage
     ) {
-        delivery.setStatus(WebhookDeliveryStatus.FAILED);
         delivery.setLastError(limitErrorMessage(errorMessage));
-        delivery.setNextRetryAt(null);
+        delivery.setDeliveredAt(null);
+
+        if (delivery.getAttemptCount() >= delivery.getMaxAttempts()) {
+            delivery.setStatus(WebhookDeliveryStatus.FAILED);
+            delivery.setNextRetryAt(null);
+            return;
+        }
+
+        delivery.setStatus(WebhookDeliveryStatus.PENDING);
+
+        long delayInSeconds =
+                calculateRetryDelay(delivery.getAttemptCount());
+
+        delivery.setNextRetryAt(
+                LocalDateTime.now().plusSeconds(delayInSeconds)
+        );
+    }
+
+    private long calculateRetryDelay(int attemptCount) {
+        return switch (attemptCount) {
+            case 1 -> 10;
+            case 2 -> 30;
+            default -> 60;
+        };
     }
 
     private String limitErrorMessage(String errorMessage) {
