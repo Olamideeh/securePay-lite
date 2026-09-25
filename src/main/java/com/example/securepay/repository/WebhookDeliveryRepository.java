@@ -19,4 +19,7 @@ public interface WebhookDeliveryRepository
             WebhookDeliveryStatus status,
             LocalDateTime retryTime
     );
+    List<WebhookDelivery> findAllByStatus(
+            WebhookDeliveryStatus status
+    );
 }
