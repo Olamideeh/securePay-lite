@@ -11,10 +11,29 @@ services:
     volumes:
       - securepay_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U securepay_user -d securepay_db"]
+      test:
+        - CMD-SHELL
+        - pg_isready -U securepay_user -d securepay_db
       interval: 10s
       timeout: 5s
       retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: securepay-app
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/securepay_db
+      DB_USERNAME: securepay_user
+      DB_PASSWORD: securepay_password
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: change-me-local-only
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   adminer:
     image: adminer:latest

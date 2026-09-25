@@ -1,0 +1,53 @@
+name: SecurePay CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: securepay_db
+          POSTGRES_USER: securepay_user
+          POSTGRES_PASSWORD: securepay_ci_password
+        ports:
+          - 5435:5432
+        options: >-
+          --health-cmd "pg_isready -U securepay_user -d securepay_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_URL: jdbc:postgresql://localhost:5435/securepay_db
+      DB_USERNAME: securepay_user
+      DB_PASSWORD: securepay_ci_password
+      ADMIN_USERNAME: ci_admin
+      ADMIN_PASSWORD: securepay_ci_admin_password
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build and run tests
+        run: mvn --batch-mode clean verify
