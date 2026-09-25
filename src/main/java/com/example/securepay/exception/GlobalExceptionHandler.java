@@ -118,4 +118,22 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(response);
     }
+    @ExceptionHandler(InvalidPaymentStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidPaymentState(
+            InvalidPaymentStateException exception,
+            HttpServletRequest request
+    ) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getRequestURI(),
+                Map.of()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
 }

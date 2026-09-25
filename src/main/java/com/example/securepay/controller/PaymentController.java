@@ -2,6 +2,7 @@ package com.example.securepay.controller;
 
 import com.example.securepay.dto.CreatePaymentRequest;
 import com.example.securepay.dto.PaymentResponse;
+import com.example.securepay.dto.ProcessPaymentRequest;
 import com.example.securepay.entity.Merchant;
 import com.example.securepay.service.PaymentService;
 import jakarta.validation.Valid;
@@ -42,5 +43,20 @@ public class PaymentController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+    @PostMapping("/{paymentReference}/process")
+    public ResponseEntity<PaymentResponse> processPayment(
+            @AuthenticationPrincipal Merchant merchant,
+            @PathVariable String paymentReference,
+            @Valid @RequestBody ProcessPaymentRequest request
+    ) {
+        PaymentResponse response =
+                paymentService.processPayment(
+                        merchant.getId(),
+                        paymentReference,
+                        request
+                );
+
+        return ResponseEntity.ok(response);
     }
 }

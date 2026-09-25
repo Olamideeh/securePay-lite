@@ -2,16 +2,20 @@ package com.example.securepay.service;
 
 import com.example.securepay.dto.CreatePaymentRequest;
 import com.example.securepay.dto.PaymentResponse;
+import com.example.securepay.dto.ProcessPaymentRequest;
 import com.example.securepay.entity.Customer;
 import com.example.securepay.entity.Payment;
+import com.example.securepay.enums.PaymentOutcome;
 import com.example.securepay.enums.PaymentStatus;
 import com.example.securepay.exception.IdempotencyConflictException;
+import com.example.securepay.exception.InvalidPaymentStateException;
 import com.example.securepay.exception.ResourceNotFoundException;
 import com.example.securepay.repository.CustomerRepository;
 import com.example.securepay.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -160,5 +164,39 @@ public class PaymentService {
                 payment.getProcessedAt(),
                 payment.getCreatedAt()
         );
+    }
+    @Transactional
+    public PaymentResponse processPayment(
+            Long merchantId,
+            String paymentReference,
+            ProcessPaymentRequest request
+    ) {
+        Payment payment = paymentRepository
+                .findByReferenceAndMerchant_Id(
+                        paymentReference,
+                        merchantId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found with reference: "
+                                + paymentReference
+                ));
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStateException(
+                    "Only a PENDING payment can be processed. "
+                            + "Current status: "
+                            + payment.getStatus()
+            );
+        }
+
+        if (request.outcome() == PaymentOutcome.SUCCESS) {
+            payment.setStatus(PaymentStatus.SUCCESSFUL);
+        } else {
+            payment.setStatus(PaymentStatus.FAILED);
+        }
+
+        payment.setProcessedAt(LocalDateTime.now());
+
+        return mapToResponse(paymentRepository.save(payment));
     }
 }
