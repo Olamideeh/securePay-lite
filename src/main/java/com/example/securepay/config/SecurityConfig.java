@@ -44,6 +44,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/customers/**")
                         .hasRole("MERCHANT")
 
+                        .requestMatchers("/api/v1/payments/**")
+                        .hasRole("MERCHANT")
+
                         .anyRequest()
                         .authenticated()
                 )
