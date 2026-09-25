@@ -7,6 +7,7 @@ import com.example.securepay.entity.Customer;
 import com.example.securepay.entity.Payment;
 import com.example.securepay.enums.PaymentOutcome;
 import com.example.securepay.enums.PaymentStatus;
+import com.example.securepay.enums.WebhookEventType;
 import com.example.securepay.exception.IdempotencyConflictException;
 import com.example.securepay.exception.InvalidPaymentStateException;
 import com.example.securepay.exception.ResourceNotFoundException;
@@ -22,15 +23,18 @@ import java.util.UUID;
 @Service
 public class PaymentService {
 
+    private final WebhookService webhookService;
     private final PaymentRepository paymentRepository;
     private final CustomerRepository customerRepository;
 
     public PaymentService(
             PaymentRepository paymentRepository,
-            CustomerRepository customerRepository
+            CustomerRepository customerRepository,
+            WebhookService webhookService
     ) {
         this.paymentRepository = paymentRepository;
         this.customerRepository = customerRepository;
+        this.webhookService = webhookService;
     }
 
     @Transactional
@@ -197,6 +201,15 @@ public class PaymentService {
 
         payment.setProcessedAt(LocalDateTime.now());
 
-        return mapToResponse(paymentRepository.save(payment));
+        Payment savedPayment = paymentRepository.save(payment);
+
+        WebhookEventType eventType =
+                savedPayment.getStatus() == PaymentStatus.SUCCESSFUL
+                        ? WebhookEventType.PAYMENT_SUCCESSFUL
+                        : WebhookEventType.PAYMENT_FAILED;
+
+        webhookService.createWebhook(savedPayment, eventType);
+
+        return mapToResponse(savedPayment);
     }
 }

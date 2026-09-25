@@ -6,6 +6,7 @@ import com.example.securepay.entity.Payment;
 import com.example.securepay.entity.Refund;
 import com.example.securepay.enums.PaymentStatus;
 import com.example.securepay.enums.RefundStatus;
+import com.example.securepay.enums.WebhookEventType;
 import com.example.securepay.exception.InvalidRefundException;
 import com.example.securepay.exception.ResourceNotFoundException;
 import com.example.securepay.repository.PaymentRepository;
@@ -20,15 +21,18 @@ import java.util.UUID;
 @Service
 public class RefundService {
 
+    private final WebhookService webhookService;
     private final RefundRepository refundRepository;
     private final PaymentRepository paymentRepository;
 
     public RefundService(
             RefundRepository refundRepository,
-            PaymentRepository paymentRepository
+            PaymentRepository paymentRepository,
+            WebhookService webhookService
     ) {
         this.refundRepository = refundRepository;
         this.paymentRepository = paymentRepository;
+        this.webhookService = webhookService;
     }
 
     @Transactional
@@ -85,11 +89,15 @@ public class RefundService {
         } else {
             payment.setStatus(PaymentStatus.PARTIALLY_REFUNDED);
         }
-
-        paymentRepository.save(payment);
+        Payment savedPayment = paymentRepository.save(payment);
         Refund savedRefund = refundRepository.save(refund);
 
-        return mapToResponse(savedRefund, payment);
+        webhookService.createWebhook(
+                savedPayment,
+                WebhookEventType.REFUND_SUCCESSFUL
+        );
+
+        return mapToResponse(savedRefund, savedPayment);
     }
 
     private void validatePaymentStatus(Payment payment) {

@@ -2,8 +2,11 @@ package com.example.securepay.service;
 
 import com.example.securepay.dto.CreateMerchantRequest;
 import com.example.securepay.dto.MerchantResponse;
+import com.example.securepay.dto.MerchantWebhookResponse;
+import com.example.securepay.dto.UpdateWebhookUrlRequest;
 import com.example.securepay.entity.Merchant;
 import com.example.securepay.exception.DuplicateResourceException;
+import com.example.securepay.exception.ResourceNotFoundException;
 import com.example.securepay.repository.MerchantRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,5 +69,26 @@ public class MerchantService {
         }
 
         return webhookUrl.trim();
+    }
+    @Transactional
+    public MerchantWebhookResponse updateWebhookUrl(
+            Long merchantId,
+            UpdateWebhookUrlRequest request
+    ) {
+        Merchant merchant = merchantRepository.findById(merchantId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Merchant not found with ID: " + merchantId
+                ));
+
+        String webhookUrl = request.webhookUrl().trim();
+
+        merchant.setWebhookUrl(webhookUrl);
+        merchantRepository.save(merchant);
+
+        return new MerchantWebhookResponse(
+                merchant.getId(),
+                merchant.getWebhookUrl(),
+                "Webhook URL updated successfully"
+        );
     }
 }
